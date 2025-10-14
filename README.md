@@ -109,7 +109,7 @@ Your inherited codebase has:
 
 1. **Clone or Download OrphanHunter**
    ```bash
-   git clone https://github.com/yourusername/OrphanHunter.git
+   git clone https://github.com/Hazardous-God/OrphanHunter.git
    cd OrphanHunter
    ```
 
