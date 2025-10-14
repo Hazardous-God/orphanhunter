@@ -23,7 +23,7 @@ Every developer knows the struggle: a growing project eventually becomes a tangl
 
 ---
 
-## 🔥 Master Call-to-Action: Don't Let Bloat Win!
+## 🔥 Don't Let Bloat Win!
 
 ### Is your PHP/SQL/JS project a tangled mess of ghost files and rogue CSS? 👻 Stop the madness NOW! This FREE Python toolkit instantly purges dead code & CSS overlap, saving you hours of 'code archaeology.' Don't let another project devolve into bloat – grab this sanity-saver and code cleaner, faster, *today*!
 
@@ -31,4 +31,4 @@ Every developer knows the struggle: a growing project eventually becomes a tangl
 
 ## 🛠️ Installation & Usage
 
-*(Detailed installation and usage instructions will go here. This section will cover how to clone the repository, run the script, and interpret its output, including command-line options and example scenarios.)*
+Double click the system-mapper.py to get started. It will detect and auto-install dependencies/requirements. 
