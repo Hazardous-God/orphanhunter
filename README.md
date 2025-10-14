@@ -32,3 +32,5 @@ Every developer knows the struggle: a growing project eventually becomes a tangl
 ## 🛠️ Installation & Usage
 
 Double click the system-mapper.py to get started. It will detect and auto-install dependencies/requirements. 
+
+Must have Python installed locally, ideally latest version. Doubtful this will run on anything less than 3.x. Python 3.13.5 is the version this is tested and working with. 
