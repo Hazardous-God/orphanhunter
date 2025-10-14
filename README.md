@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🎯 OrphanHunter v1.2: The Ultimate PHP Project Migration & Cleanup Tool
 
 ## 🚀 Instantly Clean, Migrate, and Future-Proof Your PHP/SQL/JS Projects
@@ -6,6 +5,11 @@
 ### ✨ NEW in v1.2: Revolutionary URL Migration System!
 
 **Stop manually updating URLs when migrating domains!** OrphanHunter v1.2 introduces a groundbreaking **7-step URL Migration Tool** that automatically converts hardcoded URLs to dynamic base references, making your application **100% migratable** between domains with zero manual intervention.
+
+Brought to you by Joseph "Hazardous God" Edwards, and Cursor, Claude 4.5 Sonnet, and the fact that I still use legacy code a lot.
+OrphanHunter is 100% free open-source software, free to use commercial or private, for profit, or not.
+
+If I helped you in some way with this project, a shout-out on social media and a follow go a long way! 
 
 ---
 
@@ -437,6 +441,7 @@ python test_installation.py
 **Release Date**: October 14, 2025  
 **Python**: 3.7+ (tested on 3.13.5)  
 **Status**: Production Ready ✅
+
 =======
 # 🎯 OrphanHunter v1.2: The Ultimate PHP Project Migration & Cleanup Tool
 
@@ -829,7 +834,7 @@ Special thanks to the Python and PyQt5 communities.
 - **Issues**: [https://github.com/Hazardous-God/orphanhunter/issues](https://github.com/Hazardous-God/orphanhunter/issues)
 - **Documentation**: See included markdown files (README.md, URL-MIGRATION-TOOL.md)
 - **Author**: [@Hazardous-God](https://github.com/Hazardous-God)
-
+- **Official Website**: [HazardousGod.com](https://hazardousgod.com)
 ---
 
 ## 💬 Support
@@ -876,4 +881,3 @@ python test_installation.py
 **Release Date**: October 14, 2025  
 **Python**: 3.7+ (tested on 3.13.5)  
 **Status**: Production Ready ✅
->>>>>>> 3f6006e (Add initial project structure and core functionality)
