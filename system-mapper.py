@@ -110,13 +110,22 @@ def create_directory_structure():
     """Create necessary directory structure if not present."""
     script_dir = Path(__file__).parent
     
+    # Create OrphanHunter package directory
+    package_dir = script_dir / 'OrphanHunter'
+    if not package_dir.exists():
+        package_dir.mkdir(parents=True, exist_ok=True)
+        # Create __init__.py for the package
+        init_file = package_dir / '__init__.py'
+        if not init_file.exists():
+            init_file.write_text('"""OrphanHunter - PHP Project Migration & Cleanup Tool."""\n__version__ = "1.2"\n')
+    
     directories = [
-        'utils',
-        'scanner',
-        'analyzer',
-        'operations',
-        'generators',
-        'gui'
+        'OrphanHunter/utils',
+        'OrphanHunter/scanner',
+        'OrphanHunter/analyzer',
+        'OrphanHunter/operations',
+        'OrphanHunter/generators',
+        'OrphanHunter/gui'
     ]
     
     created = []
@@ -129,7 +138,8 @@ def create_directory_structure():
             # Create __init__.py if it doesn't exist
             init_file = dir_path / '__init__.py'
             if not init_file.exists():
-                init_file.write_text(f"# {directory.capitalize()} package\n")
+                dir_name = Path(directory).name
+                init_file.write_text(f"# {dir_name.capitalize()} package\n")
     
     if created:
         print(f"\nOK - Created missing directories: {', '.join(created)}")
@@ -141,19 +151,19 @@ def check_module_files():
     script_dir = Path(__file__).parent
     
     required_files = [
-        'utils/config.py',
-        'utils/logger.py',
-        'scanner/file_scanner.py',
-        'analyzer/php_parser.py',
-        'analyzer/sql_parser.py',
-        'analyzer/dependency_graph.py',
-        'operations/backup_manager.py',
-        'operations/deletion_manager.py',
-        'operations/sanity_checker.py',
-        'generators/sitemap_generator.py',
-        'generators/markdown_generator.py',
-        'gui/widgets.py',
-        'gui/main_window.py'
+        'OrphanHunter/utils/config.py',
+        'OrphanHunter/utils/logger.py',
+        'OrphanHunter/scanner/file_scanner.py',
+        'OrphanHunter/analyzer/php_parser.py',
+        'OrphanHunter/analyzer/sql_parser.py',
+        'OrphanHunter/analyzer/dependency_graph.py',
+        'OrphanHunter/operations/backup_manager.py',
+        'OrphanHunter/operations/deletion_manager.py',
+        'OrphanHunter/operations/sanity_checker.py',
+        'OrphanHunter/generators/sitemap_generator.py',
+        'OrphanHunter/generators/markdown_generator.py',
+        'OrphanHunter/gui/widgets.py',
+        'OrphanHunter/gui/main_window.py'
     ]
     
     missing = []
@@ -202,7 +212,7 @@ if bootstrap():
     # Now safe to import application modules
     try:
         from PyQt5.QtWidgets import QApplication
-        from gui.main_window import MainWindow
+        from OrphanHunter.gui.main_window import MainWindow
     except ImportError as e:
         print(f"\nERROR: Failed to import required modules: {e}")
         print("\nTry restarting the application or reinstalling dependencies.")

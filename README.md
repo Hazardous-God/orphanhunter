@@ -109,7 +109,7 @@ Your inherited codebase has:
 
 1. **Clone or Download OrphanHunter**
    ```bash
-   git clone https://github.com/Hazardous-God/OrphanHunter.git
+   git clone https://github.com/yourusername/OrphanHunter.git
    cd OrphanHunter
    ```
 
@@ -324,7 +324,7 @@ Tests verify:
 ## 🎓 Use Cases & Success Stories
 
 ### ✅ Domain Migration (Real Use Case)
-**Challenge**: Migrate CRM from one domain to another
+**Challenge**: Migrate KrushIt platform from `https://dev.foggyroom.com/krushit/` to `https://krushitkratom.com/`
 
 **Solution**: Used OrphanHunter v1.2's URL Migration Tool
 - Auto-detected domain from config.php
@@ -385,7 +385,10 @@ Special thanks to the Python and PyQt5 communities.
 
 ## 🔗 Links
 
-- **Official Author Website**: https://HazardousGod.com
+- **GitHub**: [Your Repository URL]
+- **Issues**: [Your Issues URL]
+- **Documentation**: See included markdown files
+- **Changelog**: See CHANGELOG-2025-10-14.md
 
 ---
 
