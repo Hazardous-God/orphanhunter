@@ -385,10 +385,7 @@ Special thanks to the Python and PyQt5 communities.
 
 ## 🔗 Links
 
-- **GitHub**: [Your Repository URL]
-- **Issues**: [Your Issues URL]
-- **Documentation**: See included markdown files
-- **Changelog**: See CHANGELOG-2025-10-14.md
+- **Official Author Website**: https://HazardousGod.com
 
 ---
 
