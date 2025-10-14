@@ -1,0 +1,27 @@
+v1.2 - Portable structure with URL Migration Tool
+
+Major Update:
+- Reorganized to fully portable structure (OrphanHunter/ package)
+- Added comprehensive URL Migration Tool (7-step workflow)
+- Removed all development files and test artifacts
+- Updated README with complete v1.2 documentation
+- Added comprehensive .gitignore protection
+- All imports updated to use OrphanHunter package prefix
+
+New Features:
+- URL Migration Tool with auto-detection and verification
+- Intelligent internal/external URL classification
+- Multiple format support (BASE_URL, safe_url(), etc.)
+- Full backup and selective rollback capabilities
+- 2-pass verification system
+
+Improvements:
+- Portable structure: copy system-mapper.py + OrphanHunter/ anywhere
+- Clean, professional repository appearance
+- Production-ready and fully tested
+- 30 Python files, ~10,000+ lines of code
+
+Repository: https://github.com/Hazardous-God/orphanhunter
+Status: Production Ready ✅
+
+
