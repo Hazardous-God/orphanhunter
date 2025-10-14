@@ -324,7 +324,7 @@ Tests verify:
 ## 🎓 Use Cases & Success Stories
 
 ### ✅ Domain Migration (Real Use Case)
-**Challenge**: Migrate KrushIt platform from `https://dev.foggyroom.com/krushit/` to `https://krushitkratom.com/`
+**Challenge**: Migrate CRM from one domain to another
 
 **Solution**: Used OrphanHunter v1.2's URL Migration Tool
 - Auto-detected domain from config.php
