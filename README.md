@@ -371,7 +371,7 @@ OrphanHunter is actively maintained. Contributions welcome!
 
 ## 📜 License
 
-[Your License Here - e.g., MIT License]
+MIT License - see [LICENSE](https://github.com/Hazardous-God/orphanhunter/blob/main/LICENSE) file for details
 
 ---
 
@@ -385,10 +385,10 @@ Special thanks to the Python and PyQt5 communities.
 
 ## 🔗 Links
 
-- **GitHub**: [Your Repository URL]
-- **Issues**: [Your Issues URL]
-- **Documentation**: See included markdown files
-- **Changelog**: See CHANGELOG-2025-10-14.md
+- **GitHub**: [https://github.com/Hazardous-God/orphanhunter](https://github.com/Hazardous-God/orphanhunter)
+- **Issues**: [https://github.com/Hazardous-God/orphanhunter/issues](https://github.com/Hazardous-God/orphanhunter/issues)
+- **Documentation**: See included markdown files (README.md, URL-MIGRATION-TOOL.md)
+- **Author**: [@Hazardous-God](https://github.com/Hazardous-God)
 
 ---
 
