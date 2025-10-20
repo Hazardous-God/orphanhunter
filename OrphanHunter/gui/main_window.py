@@ -13,8 +13,10 @@ from PyQt5.QtGui import QIcon
 from OrphanHunter.utils.config import Config
 from OrphanHunter.utils.logger import Logger
 from OrphanHunter.scanner.file_scanner import FileScanner
+from OrphanHunter.scanner.site_scanner import SiteScanner, SiteScannerDB
 from OrphanHunter.analyzer.php_parser import PHPParser
 from OrphanHunter.analyzer.sql_parser import SQLParser, SQLReferenceAnalyzer
+from OrphanHunter.analyzer.live_db_connector import LiveDatabaseConnector
 from OrphanHunter.analyzer.dependency_graph import DependencyGraph
 from OrphanHunter.operations.backup_manager import BackupManager
 from OrphanHunter.operations.deletion_manager import DeletionManager
@@ -164,6 +166,8 @@ class MainWindow(QMainWindow):
         self.sanity_checker = None
         self.orphaned_files = set()
         self.sql_tables = set()
+        self.site_scanner = None
+        self.db_connector = None
         
         self.init_ui()
         self.connect_signals()
@@ -195,6 +199,7 @@ class MainWindow(QMainWindow):
         self.create_scan_tab()
         self.create_delete_tab()
         self.create_generate_tab()
+        self.create_site_scanner_tab()
         self.create_log_tab()
         
         # Log console at bottom
@@ -488,6 +493,110 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Generate Docs")
+    
+    def create_site_scanner_tab(self):
+        """Create site scanner tab for web crawling."""
+        tab = QWidget()
+        layout = QVBoxLayout()
+        
+        # Connection group
+        conn_group = QGroupBox("Database Connection")
+        conn_layout = QFormLayout()
+        
+        self.db_status_label = QLabel("Not connected")
+        conn_layout.addRow("Status:", self.db_status_label)
+        
+        conn_btn_layout = QHBoxLayout()
+        self.connect_db_btn = QPushButton("Connect to Database")
+        self.connect_db_btn.clicked.connect(self.connect_to_database)
+        conn_btn_layout.addWidget(self.connect_db_btn)
+        
+        self.disconnect_db_btn = QPushButton("Disconnect")
+        self.disconnect_db_btn.clicked.connect(self.disconnect_from_database)
+        self.disconnect_db_btn.setEnabled(False)
+        conn_btn_layout.addWidget(self.disconnect_db_btn)
+        
+        conn_layout.addRow("", conn_btn_layout)
+        conn_group.setLayout(conn_layout)
+        layout.addWidget(conn_group)
+        
+        # Site scanner configuration
+        scanner_group = QGroupBox("Site Scanner Configuration")
+        scanner_layout = QFormLayout()
+        
+        self.site_url_input = QLineEdit()
+        self.site_url_input.setPlaceholderText("https://example.com")
+        scanner_layout.addRow("Website URL:", self.site_url_input)
+        
+        self.max_pages_input = QSpinBox()
+        self.max_pages_input.setMinimum(1)
+        self.max_pages_input.setMaximum(10000)
+        self.max_pages_input.setValue(100)
+        scanner_layout.addRow("Max Pages:", self.max_pages_input)
+        
+        self.crawl_delay_input = QSpinBox()
+        self.crawl_delay_input.setMinimum(0)
+        self.crawl_delay_input.setMaximum(10)
+        self.crawl_delay_input.setValue(1)
+        self.crawl_delay_input.setSuffix(" seconds")
+        scanner_layout.addRow("Delay:", self.crawl_delay_input)
+        
+        self.follow_external_checkbox = QCheckBox("Follow external links")
+        scanner_layout.addRow("", self.follow_external_checkbox)
+        
+        scanner_group.setLayout(scanner_layout)
+        layout.addWidget(scanner_group)
+        
+        # Control buttons
+        control_layout = QHBoxLayout()
+        
+        self.start_crawl_btn = QPushButton("Start Crawling")
+        self.start_crawl_btn.clicked.connect(self.start_site_crawl)
+        control_layout.addWidget(self.start_crawl_btn)
+        
+        self.stop_crawl_btn = QPushButton("Stop")
+        self.stop_crawl_btn.clicked.connect(self.stop_site_crawl)
+        self.stop_crawl_btn.setEnabled(False)
+        control_layout.addWidget(self.stop_crawl_btn)
+        
+        layout.addLayout(control_layout)
+        
+        # Statistics
+        stats_group = QGroupBox("Crawl Statistics")
+        stats_layout = QFormLayout()
+        
+        self.crawl_total_label = QLabel("0")
+        stats_layout.addRow("Total Pages:", self.crawl_total_label)
+        
+        self.crawl_success_label = QLabel("0")
+        stats_layout.addRow("Successful:", self.crawl_success_label)
+        
+        self.crawl_errors_label = QLabel("0")
+        stats_layout.addRow("Errors:", self.crawl_errors_label)
+        
+        self.crawl_avg_time_label = QLabel("0.0s")
+        stats_layout.addRow("Avg Load Time:", self.crawl_avg_time_label)
+        
+        stats_group.setLayout(stats_layout)
+        layout.addWidget(stats_group)
+        
+        # Results
+        results_group = QGroupBox("Crawl Results")
+        results_layout = QVBoxLayout()
+        
+        self.crawl_results_text = QTextEdit()
+        self.crawl_results_text.setReadOnly(True)
+        results_layout.addWidget(self.crawl_results_text)
+        
+        save_results_btn = QPushButton("Save Results to Database")
+        save_results_btn.clicked.connect(self.save_crawl_results)
+        results_layout.addWidget(save_results_btn)
+        
+        results_group.setLayout(results_layout)
+        layout.addWidget(results_group)
+        
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Site Scanner")
     
     def create_log_tab(self):
         """Create log viewer tab."""
@@ -1025,4 +1134,204 @@ class MainWindow(QMainWindow):
         # Create and show URL migration window
         migration_window = URLMigrationWindow(self.config, self)
         migration_window.exec_()
+    
+    def connect_to_database(self):
+        """Connect to database for site scanner."""
+        config_php = self.config_php_input.text()
+        if not config_php or not Path(config_php).exists():
+            QMessageBox.warning(self, "Error", "Please set config.php path in Config tab first")
+            return
+        
+        try:
+            from OrphanHunter.analyzer.live_db_connector import ConfigParser
+            
+            # Parse credentials
+            parser = ConfigParser()
+            credentials = parser.parse_config(Path(config_php))
+            valid, message = parser.validate_credentials()
+            
+            if not valid:
+                QMessageBox.warning(self, "Error", message)
+                return
+            
+            # Create connector
+            self.db_connector = LiveDatabaseConnector()
+            success, msg = self.db_connector.connect(credentials)
+            
+            if success:
+                self.db_status_label.setText("Connected ✓")
+                self.db_status_label.setStyleSheet("color: green;")
+                self.connect_db_btn.setEnabled(False)
+                self.disconnect_db_btn.setEnabled(True)
+                self.logger.info(msg)
+                
+                # Start monitoring
+                self.db_connector.start_monitoring(
+                    interval=30,
+                    callback=self.db_monitor_callback
+                )
+            else:
+                QMessageBox.critical(self, "Connection Error", msg)
+                self.db_connector = None
+        
+        except ImportError:
+            reply = QMessageBox.question(
+                self, "Install Required Package",
+                "mysql-connector-python is required. Install now?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                import subprocess
+                try:
+                    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'mysql-connector-python'])
+                    QMessageBox.information(self, "Success", "Package installed. Please try connecting again.")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Installation failed: {e}")
+        
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Connection error: {e}")
+            self.db_connector = None
+    
+    def disconnect_from_database(self):
+        """Disconnect from database."""
+        if self.db_connector:
+            self.db_connector.disconnect()
+            self.db_connector = None
+        
+        self.db_status_label.setText("Not connected")
+        self.db_status_label.setStyleSheet("")
+        self.connect_db_btn.setEnabled(True)
+        self.disconnect_db_btn.setEnabled(False)
+        self.logger.info("Disconnected from database")
+    
+    def db_monitor_callback(self, event_type, success, message):
+        """Callback for database monitoring events."""
+        if event_type == 'reconnect':
+            if success:
+                self.logger.info(f"Database reconnected: {message}")
+                self.db_status_label.setText("Connected ✓ (reconnected)")
+            else:
+                self.logger.error(f"Database reconnection failed: {message}")
+                self.db_status_label.setText("Connection lost ✗")
+                self.db_status_label.setStyleSheet("color: red;")
+        elif event_type == 'connected':
+            self.logger.info(message)
+    
+    def start_site_crawl(self):
+        """Start crawling website."""
+        url = self.site_url_input.text().strip()
+        if not url:
+            QMessageBox.warning(self, "Error", "Please enter a website URL")
+            return
+        
+        max_pages = self.max_pages_input.value()
+        
+        # Create scanner
+        self.site_scanner = SiteScanner(url, max_pages)
+        self.site_scanner.delay_between_requests = self.crawl_delay_input.value()
+        self.site_scanner.follow_external = self.follow_external_checkbox.isChecked()
+        
+        # Clear results
+        self.crawl_results_text.clear()
+        
+        # Update UI
+        self.start_crawl_btn.setEnabled(False)
+        self.stop_crawl_btn.setEnabled(True)
+        
+        # Start crawling
+        self.site_scanner.start_crawl(self.crawl_callback)
+        self.logger.info(f"Started crawling: {url}")
+        
+        # Start update timer
+        from PyQt5.QtCore import QTimer
+        self.crawl_update_timer = QTimer()
+        self.crawl_update_timer.timeout.connect(self.update_crawl_stats)
+        self.crawl_update_timer.start(1000)  # Update every second
+    
+    def stop_site_crawl(self):
+        """Stop the crawling process."""
+        if self.site_scanner:
+            self.site_scanner.stop_crawl()
+            self.start_crawl_btn.setEnabled(True)
+            self.stop_crawl_btn.setEnabled(False)
+            
+            if hasattr(self, 'crawl_update_timer'):
+                self.crawl_update_timer.stop()
+            
+            self.logger.info("Crawling stopped")
+    
+    def crawl_callback(self, event_type, data):
+        """Callback for crawl events."""
+        if event_type == 'page_crawled':
+            page = data
+            status = "✓" if page.status_code == 200 else "✗"
+            self.crawl_results_text.append(
+                f"{status} [{page.status_code}] {page.url}\n"
+                f"   Title: {page.title or 'N/A'}\n"
+            )
+        elif event_type == 'crawl_complete':
+            self.start_crawl_btn.setEnabled(True)
+            self.stop_crawl_btn.setEnabled(False)
+            
+            if hasattr(self, 'crawl_update_timer'):
+                self.crawl_update_timer.stop()
+            
+            self.update_crawl_stats()
+            self.logger.info(f"Crawling complete: {data['total_pages']} pages")
+            
+            QMessageBox.information(
+                self, "Crawl Complete",
+                f"Crawled {data['total_pages']} pages\n"
+                f"Successful: {data['successful']}\n"
+                f"Errors: {data['errors']}"
+            )
+    
+    def update_crawl_stats(self):
+        """Update crawl statistics display."""
+        if not self.site_scanner:
+            return
+        
+        stats = self.site_scanner.get_statistics()
+        self.crawl_total_label.setText(str(stats['total_pages']))
+        self.crawl_success_label.setText(str(stats['successful']))
+        self.crawl_errors_label.setText(str(stats['errors']))
+        self.crawl_avg_time_label.setText(f"{stats['avg_load_time']:.2f}s")
+    
+    def save_crawl_results(self):
+        """Save crawl results to database."""
+        if not self.site_scanner or not self.site_scanner.pages:
+            QMessageBox.warning(self, "Error", "No crawl results to save")
+            return
+        
+        if not self.db_connector or not self.db_connector.connected:
+            QMessageBox.warning(self, "Error", "Please connect to database first")
+            return
+        
+        try:
+            # Create database handler
+            scanner_db = SiteScannerDB(self.db_connector)
+            
+            # Ensure table exists
+            success, message = scanner_db.ensure_table_exists()
+            if not success:
+                QMessageBox.critical(self, "Error", message)
+                return
+            
+            # Save all pages
+            saved_count = 0
+            for page in self.site_scanner.get_all_pages():
+                success, msg = scanner_db.save_page(page)
+                if success:
+                    saved_count += 1
+            
+            QMessageBox.information(
+                self, "Success",
+                f"Saved {saved_count} pages to database"
+            )
+            self.logger.info(f"Saved {saved_count} crawl results to database")
+        
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save results: {e}")
+            self.logger.error(f"Error saving crawl results: {e}")
 

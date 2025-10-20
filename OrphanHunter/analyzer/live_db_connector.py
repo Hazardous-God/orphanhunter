@@ -3,6 +3,8 @@ import re
 from pathlib import Path
 from typing import Dict, Set, Optional, List, Tuple
 import chardet
+import time
+import threading
 
 class ConfigParser:
     """Parse config.php to extract database credentials."""
@@ -106,9 +108,14 @@ class LiveDatabaseConnector:
         self.tables: Set[str] = set()
         self.table_structure: Dict[str, List[str]] = {}
         self.url_data: Dict[str, List[Tuple[str, int, str]]] = {}  # url -> [(table, row_id, column)]
+        self.credentials: Dict[str, Optional[str]] = {}
+        self.monitoring = False
+        self.monitor_thread = None
+        self.monitor_callback = None
+        self.last_check_time = 0
         
     def connect(self, credentials: Dict[str, Optional[str]]) -> Tuple[bool, str]:
-        """Connect to database using credentials."""
+        """Connect to database using credentials with proper charset handling."""
         try:
             import mysql.connector
         except ImportError:
@@ -120,10 +127,15 @@ class LiveDatabaseConnector:
                 user=credentials['user'],
                 password=credentials['password'] or '',
                 database=credentials['database'],
-                port=credentials.get('port', 3306)
+                port=credentials.get('port', 3306),
+                charset='utf8mb4',
+                collation='utf8mb4_unicode_ci',
+                use_unicode=True,
+                autocommit=False
             )
-            self.cursor = self.connection.cursor()
+            self.cursor = self.connection.cursor(buffered=True)
             self.connected = True
+            self.credentials = credentials.copy()
             return True, f"Connected to {credentials['database']} on {credentials['host']}"
         
         except mysql.connector.Error as e:
@@ -133,6 +145,7 @@ class LiveDatabaseConnector:
     
     def disconnect(self):
         """Close database connection."""
+        self.stop_monitoring()
         if self.cursor:
             self.cursor.close()
         if self.connection:
@@ -191,8 +204,9 @@ class LiveDatabaseConnector:
                 text_columns = []
                 
                 for col in columns:
-                    # Get column type
-                    self.cursor.execute(f"SHOW COLUMNS FROM `{table}` WHERE Field = '{col}'")
+                    # Get column type - use parameterized query to prevent SQL injection
+                    query = "SHOW COLUMNS FROM `{}` WHERE Field = %s".format(table)
+                    self.cursor.execute(query, (col,))
                     result = self.cursor.fetchone()
                     if result:
                         col_type = result[1].lower()
@@ -300,8 +314,99 @@ class LiveDatabaseConnector:
             'connected': self.connected,
             'total_tables': len(self.tables),
             'urls_found': len(self.url_data),
-            'total_url_references': sum(len(refs) for refs in self.url_data.values())
+            'total_url_references': sum(len(refs) for refs in self.url_data.values()),
+            'monitoring': self.monitoring
         }
+    
+    def check_connection(self) -> bool:
+        """Check if database connection is alive."""
+        if not self.connection:
+            return False
+        
+        try:
+            self.connection.ping(reconnect=False, attempts=1, delay=0)
+            return True
+        except Exception:
+            return False
+    
+    def reconnect(self) -> Tuple[bool, str]:
+        """Attempt to reconnect to the database."""
+        if not self.credentials:
+            return False, "No credentials stored for reconnection"
+        
+        # Close existing connection
+        if self.cursor:
+            try:
+                self.cursor.close()
+            except Exception:
+                pass
+        if self.connection:
+            try:
+                self.connection.close()
+            except Exception:
+                pass
+        
+        self.connected = False
+        
+        # Reconnect
+        return self.connect(self.credentials)
+    
+    def ensure_connection(self) -> Tuple[bool, str]:
+        """Ensure connection is alive, reconnect if necessary."""
+        if self.check_connection():
+            return True, "Connection is active"
+        
+        return self.reconnect()
+    
+    def start_monitoring(self, interval: int = 30, callback=None):
+        """Start live monitoring of database connection.
+        
+        Args:
+            interval: Check interval in seconds
+            callback: Function to call when connection status changes
+        """
+        if self.monitoring:
+            return
+        
+        self.monitoring = True
+        self.monitor_callback = callback
+        self.monitor_thread = threading.Thread(target=self._monitor_loop, args=(interval,), daemon=True)
+        self.monitor_thread.start()
+    
+    def stop_monitoring(self):
+        """Stop live monitoring."""
+        self.monitoring = False
+        if self.monitor_thread:
+            self.monitor_thread.join(timeout=5)
+            self.monitor_thread = None
+    
+    def _monitor_loop(self, interval: int):
+        """Internal monitoring loop."""
+        while self.monitoring:
+            current_time = time.time()
+            
+            # Check connection health
+            was_connected = self.connected
+            is_alive = self.check_connection()
+            
+            if not is_alive and was_connected:
+                # Connection lost, attempt reconnect
+                success, message = self.reconnect()
+                if self.monitor_callback:
+                    self.monitor_callback('reconnect', success, message)
+            elif is_alive and not was_connected:
+                # Connection restored
+                self.connected = True
+                if self.monitor_callback:
+                    self.monitor_callback('connected', True, 'Connection restored')
+            
+            self.last_check_time = current_time
+            
+            # Sleep in small intervals to allow quick shutdown
+            for _ in range(interval * 10):
+                if not self.monitoring:
+                    break
+                time.sleep(0.1)
 
 
 class DatabaseAnalyzer:

@@ -1,0 +1,21 @@
+# OrphanHunter Requirements
+# Python 3.7+
+
+# GUI Framework
+PyQt5>=5.15.0
+
+# XML/HTML Parsing
+lxml>=4.9.0
+beautifulsoup4>=4.11.0
+
+# Character Encoding Detection
+chardet>=5.0.0
+
+# HTTP Requests for Site Scanner
+requests>=2.28.0
+
+# Database Connector (Optional - for live SQL monitoring)
+mysql-connector-python>=8.0.0
+
+# Additional utilities
+urllib3>=1.26.0
