@@ -1,0 +1,71 @@
+================================================================================
+  SQL TO PHP MAPPER - QUICK START GUIDE
+================================================================================
+
+WHAT IT DOES:
+-------------
+Maps SQL database tables to their usage in PHP files, showing:
+  ✓ Which tables are used and where
+  ✓ Which tables are unused (potential cleanup candidates)
+  ✓ Table schemas with columns, keys, and relationships
+  ✓ Exact line numbers and code context for each reference
+
+USAGE:
+------
+  python sql-mapper.py                    # Scan current directory
+  python sql-mapper.py /path/to/project   # Scan specific project
+  python sql-mapper.py --help             # Show all options
+
+REPORTS GENERATED:
+------------------
+  1. table-map.md
+     - Complete table breakdown with schema details
+     - Usage status for every table
+     - Primary/foreign keys and relationships
+
+  2. YYYY-MM-DD-sql-php-connections.md
+     - Tables in use with file locations and line numbers
+     - Unused tables with warnings
+     - Executive summary and recommendations
+
+OUTPUT LOCATION:
+----------------
+  Reports are saved to: [project_directory]/sql-reports/
+
+EXAMPLE OUTPUT:
+---------------
+  Total Tables:     42
+  Tables Used:      35
+  Tables Unused:    7
+  PHP Files:        156
+  SQL Files:        3
+
+  ✅ users - 47 references in 12 files
+  ✅ posts - 23 references in 8 files
+  ⚠️  legacy_data - UNUSED
+
+TEST IT:
+--------
+  python test_sql_mapper.py
+
+  This creates a sample project and demonstrates the full analysis.
+
+REQUIREMENTS:
+-------------
+  - Python 3.7+
+  - chardet library (auto-installed if missing)
+  - .sql files containing table definitions
+  - .php files to analyze
+
+TIPS:
+-----
+  ✓ Run regularly to track database evolution
+  ✓ Review unused tables before deletion
+  ✓ Keep dated reports for historical reference
+  ✓ Share reports with your team
+
+DOCUMENTATION:
+--------------
+  Full documentation: SQL-MAPPER.md
+
+================================================================================
