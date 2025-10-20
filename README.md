@@ -301,28 +301,18 @@ $citation = "https://wikipedia.org/article";
 
 ## 📚 Documentation
 
-- **`URL-MIGRATION-TOOL.md`**: Complete guide to the URL Migration Tool
-- **`IMPLEMENTATION-SUMMARY.md`**: Technical architecture and details
-- **`CHANGELOG-2025-10-14.md`**: Version 1.2 release notes
+- `URL-MIGRATION-TOOL.md`: URL Migration Tool guide
+- `SQL-MAPPER.md`: SQL to PHP mapper guide
 - In-app help text throughout the interface
 
 ---
 
 ## 🧪 Testing
 
-Run the comprehensive test suite:
+Minimal smoke test:
 ```bash
-python test_url_migration.py
+python -c "import OrphanHunter; print('OK')"
 ```
-
-Expected result: `✓ ALL TESTS PASSED`
-
-Tests verify:
-- URL detection accuracy
-- Domain classification
-- Helper function detection
-- Change planning and tracking
-- Report generation
 
 ---
 
