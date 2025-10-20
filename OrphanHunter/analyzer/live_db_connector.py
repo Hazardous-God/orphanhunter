@@ -1,8 +1,11 @@
-"""Live database connection using config.php credentials."""
+"""Live database connection using config.php credentials with monitoring capabilities."""
 import re
+import time
+import threading
 from pathlib import Path
-from typing import Dict, Set, Optional, List, Tuple
+from typing import Dict, Set, Optional, List, Tuple, Callable
 import chardet
+import logging
 
 class ConfigParser:
     """Parse config.php to extract database credentials."""
@@ -97,7 +100,7 @@ class ConfigParser:
 
 
 class LiveDatabaseConnector:
-    """Connect to live MySQL/MariaDB database and analyze."""
+    """Connect to live MySQL/MariaDB database and analyze with monitoring capabilities."""
     
     def __init__(self):
         self.connection = None
@@ -107,37 +110,79 @@ class LiveDatabaseConnector:
         self.table_structure: Dict[str, List[str]] = {}
         self.url_data: Dict[str, List[Tuple[str, int, str]]] = {}  # url -> [(table, row_id, column)]
         
-    def connect(self, credentials: Dict[str, Optional[str]]) -> Tuple[bool, str]:
-        """Connect to database using credentials."""
+        # Monitoring features
+        self.monitoring = False
+        self.monitor_thread = None
+        self.monitor_callbacks: List[Callable] = []
+        self.connection_stats = {
+            'connected_at': None,
+            'last_query': None,
+            'query_count': 0,
+            'error_count': 0,
+            'reconnect_count': 0
+        }
+        self.heartbeat_interval = 30  # seconds
+        self.logger = logging.getLogger(__name__)
+        
+    def connect(self, credentials: Dict[str, Optional[str]], auto_reconnect: bool = True) -> Tuple[bool, str]:
+        """Connect to database using credentials with auto-reconnect support."""
         try:
             import mysql.connector
         except ImportError:
             return False, "mysql-connector-python not installed. Run: pip install mysql-connector-python"
         
         try:
+            # Enhanced connection with pooling and auto-reconnect
             self.connection = mysql.connector.connect(
                 host=credentials['host'],
                 user=credentials['user'],
                 password=credentials['password'] or '',
                 database=credentials['database'],
-                port=credentials.get('port', 3306)
+                port=credentials.get('port', 3306),
+                autocommit=True,
+                pool_name='orphanhunter_pool',
+                pool_size=3,
+                pool_reset_session=True,
+                connection_timeout=10,
+                auth_plugin='mysql_native_password'
             )
-            self.cursor = self.connection.cursor()
+            self.cursor = self.connection.cursor(buffered=True)
             self.connected = True
+            self.connection_stats['connected_at'] = time.time()
+            self.connection_stats['reconnect_count'] += 1
+            
+            # Test connection
+            self.cursor.execute("SELECT 1")
+            self.cursor.fetchone()
+            
+            self.logger.info(f"Connected to {credentials['database']} on {credentials['host']}")
             return True, f"Connected to {credentials['database']} on {credentials['host']}"
         
         except mysql.connector.Error as e:
+            self.connection_stats['error_count'] += 1
+            self.logger.error(f"Database connection error: {e}")
             return False, f"Database connection error: {e}"
         except Exception as e:
+            self.connection_stats['error_count'] += 1
+            self.logger.error(f"Unexpected connection error: {e}")
             return False, f"Unexpected error: {e}"
     
     def disconnect(self):
-        """Close database connection."""
+        """Close database connection and stop monitoring."""
+        self.stop_monitoring()
+        
         if self.cursor:
-            self.cursor.close()
+            try:
+                self.cursor.close()
+            except:
+                pass
         if self.connection:
-            self.connection.close()
+            try:
+                self.connection.close()
+            except:
+                pass
         self.connected = False
+        self.logger.info("Database connection closed")
     
     def get_tables(self) -> Set[str]:
         """Get list of all tables in database."""
@@ -291,17 +336,105 @@ class LiveDatabaseConnector:
         
         return results
     
-    def get_statistics(self) -> Dict:
-        """Get database statistics."""
+    def start_monitoring(self, callback: Callable = None):
+        """Start live database monitoring."""
+        if self.monitoring or not self.connected:
+            return
+            
+        self.monitoring = True
+        if callback:
+            self.monitor_callbacks.append(callback)
+            
+        self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.monitor_thread.start()
+        self.logger.info("Database monitoring started")
+    
+    def stop_monitoring(self):
+        """Stop live database monitoring."""
+        self.monitoring = False
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.join(timeout=2)
+        self.logger.info("Database monitoring stopped")
+    
+    def add_monitor_callback(self, callback: Callable):
+        """Add callback for monitoring events."""
+        self.monitor_callbacks.append(callback)
+    
+    def _monitor_loop(self):
+        """Main monitoring loop."""
+        while self.monitoring and self.connected:
+            try:
+                # Heartbeat check
+                self.cursor.execute("SELECT 1")
+                self.cursor.fetchone()
+                
+                # Get current stats
+                stats = self.get_statistics()
+                
+                # Notify callbacks
+                for callback in self.monitor_callbacks:
+                    try:
+                        callback(stats)
+                    except Exception as e:
+                        self.logger.error(f"Monitor callback error: {e}")
+                
+                time.sleep(self.heartbeat_interval)
+                
+            except Exception as e:
+                self.logger.error(f"Monitor loop error: {e}")
+                self.connection_stats['error_count'] += 1
+                
+                # Try to reconnect
+                if not self._reconnect():
+                    break
+    
+    def _reconnect(self) -> bool:
+        """Attempt to reconnect to database."""
+        try:
+            if self.connection:
+                self.connection.reconnect()
+                self.cursor = self.connection.cursor(buffered=True)
+                self.connection_stats['reconnect_count'] += 1
+                self.logger.info("Database reconnected successfully")
+                return True
+        except Exception as e:
+            self.logger.error(f"Reconnection failed: {e}")
+            self.connected = False
+            return False
+    
+    def execute_query(self, query: str, params: tuple = None) -> List:
+        """Execute query with error handling and stats tracking."""
         if not self.connected:
-            return {}
+            raise Exception("Not connected to database")
         
-        return {
+        try:
+            self.cursor.execute(query, params)
+            self.connection_stats['query_count'] += 1
+            self.connection_stats['last_query'] = time.time()
+            return self.cursor.fetchall()
+        except Exception as e:
+            self.connection_stats['error_count'] += 1
+            self.logger.error(f"Query error: {e}")
+            raise
+    
+    def get_statistics(self) -> Dict:
+        """Get comprehensive database statistics."""
+        base_stats = {
             'connected': self.connected,
+            'monitoring': self.monitoring,
             'total_tables': len(self.tables),
             'urls_found': len(self.url_data),
             'total_url_references': sum(len(refs) for refs in self.url_data.values())
         }
+        
+        # Add connection stats
+        base_stats.update(self.connection_stats)
+        
+        # Add uptime if connected
+        if self.connection_stats['connected_at']:
+            base_stats['uptime_seconds'] = time.time() - self.connection_stats['connected_at']
+        
+        return base_stats
 
 
 class DatabaseAnalyzer:
