@@ -23,6 +23,8 @@ from OrphanHunter.generators.sitemap_generator import SitemapGenerator
 from OrphanHunter.generators.markdown_generator import MarkdownGenerator
 from OrphanHunter.gui.widgets import FileTreeWidget, LogConsole, StatusPanel, StatsWidget
 from OrphanHunter.gui.url_migration_window import URLMigrationWindow
+from OrphanHunter.gui.site_scanner_window import SiteScannerWindow
+from OrphanHunter.scanner.site_scanner import SiteScanner, SiteScannerWithSQL
 
 
 class ScanWorker(QThread):
@@ -484,6 +486,18 @@ class MainWindow(QMainWindow):
         
         url_migration_group.setLayout(url_migration_layout)
         layout.addWidget(url_migration_group)
+        
+        # Live Site Scanner
+        site_scanner_group = QGroupBox("Live Site Scanner")
+        site_scanner_layout = QVBoxLayout()
+        site_scanner_layout.addWidget(QLabel("Crawl and analyze websites like SEMRush with SQL integration"))
+        
+        self.site_scanner_btn = QPushButton("Open Site Scanner")
+        self.site_scanner_btn.clicked.connect(self.open_site_scanner)
+        site_scanner_layout.addWidget(self.site_scanner_btn)
+        
+        site_scanner_group.setLayout(site_scanner_layout)
+        layout.addWidget(site_scanner_group)
         
         layout.addStretch()
         tab.setLayout(layout)
@@ -1025,4 +1039,15 @@ class MainWindow(QMainWindow):
         # Create and show URL migration window
         migration_window = URLMigrationWindow(self.config, self)
         migration_window.exec_()
+    
+    def open_site_scanner(self):
+        """Open Site Scanner window."""
+        # Get database connector if available
+        db_connector = None
+        if hasattr(self, 'db_analyzer') and self.db_analyzer:
+            db_connector = self.db_analyzer.connector
+        
+        # Create and show site scanner window
+        scanner_window = SiteScannerWindow(self, db_connector)
+        scanner_window.show()
 
